@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Security Research PoC - NASA VDP - Subdomain Takeover</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font-family: ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+         max-width: 780px; margin: 60px auto; padding: 0 22px; line-height: 1.6; }
+  h1 { font-size: 20px; margin-bottom: 4px; }
+  .banner { border: 2px solid #b45309; border-left-width: 8px; padding: 14px 18px;
+            background: rgba(180,83,9,.09); margin: 22px 0; }
+  .badge { display:inline-block; background:#b45309; color:#fff; font-weight:700;
+            padding:2px 10px; border-radius:3px; font-size:13px; }
+  table { border-collapse: collapse; width:100%; margin:18px 0; }
+  th,td { border:1px solid #8886; padding:7px 10px; text-align:left; vertical-align:top; }
+  th { background: rgba(127,127,127,.14); }
+  code,pre { background: rgba(127,127,127,.14); padding:2px 6px; border-radius:3px; }
+  pre { padding:12px 14px; overflow-x:auto; }
+  .muted { opacity:.72; font-size:13px; }
+</style>
+</head>
+<body>
+
+<div class="banner">
+  <span class="badge">SECURITY RESEARCH</span>
+  <h1>Subdomain Takeover &mdash; Proof of Concept</h1>
+  <p><strong>This is NOT a NASA website.</strong> It is a benign proof-of-concept
+  page hosted on an independent GitHub Pages site. It contains no NASA content,
+  no credential prompts, no scripts, and no tracking. It exists solely to prove
+  that a dangling CNAME on <code>beta.science.nasa.gov</code> can be pointed at
+  third-party infrastructure by an unauthorized party.</p>
+</div>
+
+<table>
+  <tr><th>Affected hostname</th><td><code>beta.science.nasa.gov</code></td></tr>
+  <tr><th>CNAME target</th><td><code>nasa-smd.go-vip.net</code></td></tr>
+  <tr><th>Class</th><td>Dangling CNAME / subdomain takeover (unclaimed provider site)</td></tr>
+  <tr><th>Program</th><td>NASA Vulnerability Disclosure Program</td></tr>
+  <tr><th>Report to</th><td>https://bugcrowd.com/engagements/nasa-vdp</td></tr>
+  <tr><th>Requested</th><td>2026-11-08</td></tr>
+</table>
+
+<h2>How to reproduce</h2>
+<pre>$ dig +short CNAME beta.science.nasa.gov
+nasa-smd.go-vip.net.
+
+$ dig +short A beta.science.nasa.gov
+nasa-smd.go-vip.net.
+192.0.66.125
+
+$ curl -skI https://beta.science.nasa.gov/ | head -3
+HTTP/2 404
+server: nginx
+
+$ curl -sk https://nasa-smd.go-vip.net/ | head -3
+404 Not Found
+404 Not Found
+nginx</pre>
+
+<h2>Why this is a takeover</h2>
+<p><code>nasa-smd.go-vip.net</code> returns a bare nginx <em>404 Not Found</em> page that is
+<strong>byte-for-byte identical to random unclaimed hostnames</strong> on the same
+platform, while every <em>provisioned</em> NASA site on that platform returns the
+provider's branded &ldquo;Site not found&rdquo; page or live content:</p>
+
+<pre>$ curl -sk https://nasa-smd.go-vip.net/        | head -1
+404 Not Found
+$ curl -sk https://nasa-gov.go-vip.net/ | head -1
+Site not found
+$ curl -sk https://nasa-hc.go-vip.net/  | head -1
+Homepage | NASA Home & City
+$ curl -sk https://nasa-tv.go-vip.net/  | head -1
+Home | NASA+</pre>
+
+<p>The absence of the branded page means no site is provisioned for this
+hostname on the provider platform, so the hostname is available for registration
+by an unauthorized party.</p>
+
+<h2>Remediation</h2>
+<ol>
+  <li>Remove the <code>CNAME</code> record for <code>beta.science.nasa.gov</code>, or</li>
+  <li>Re-provision the <code>nasa-smd.go-vip.net</code> site on the provider platform
+      (so the platform returns its branded response again), and</li>
+  <li>Audit the remaining <code>*.nasa.gov</code> CNAME records for the same
+      condition &mdash; see the accompanying report for the full list.</li>
+</ol>
+
+<p class="muted">No NASA systems were accessed, no data was collected, no
+credentials were requested, and the provider site was not registered. This page
+proves the vulnerability class only.</p>
+
+</body>
+</html>
